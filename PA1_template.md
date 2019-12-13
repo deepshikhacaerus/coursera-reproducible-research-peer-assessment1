@@ -6,15 +6,24 @@
 ##### 1. Load the data (i.e. read.csv())
 
 ```r
-if(!file.exists('activity.csv')){
-    unzip('activity.zip')
+getwd()
+setwd("C:/Users/Deep_shikha/Documents/Reproducible Research")
+zipfile <- "C:/Users/Deep_shikha/Documents/Reproducible Research/repdata_data_activity.zip"
+filedir <- "C:/Users/Deep_shikha/Documents/Reproducible Research"
+unzip_path <- "C:/Users/Deep_shikha/Documents/Reproducible Research/repdata_data_activity"  ##### path for storing the unzipped files #######
+if (!file.exists(filedir)){
+  dir.create(filedir)
 }
-activityData <- read.csv('activity.csv')
+unzip(zipfile,exdir=unzip_path) ####### exdir is the extract directory ##########
+datafile <- file.path(unzip_path,"activity.csv")
+activity <- read.csv(datafile)
 ```
 ##### 2. Process/transform the data (if necessary) into a format suitable for your analysis
 
 ```r
-#activityData$interval <- strptime(gsub("([0-9]{1,2})([0-9]{2})", "\\1:\\2", activityData$interval), format='%H:%M')
+activity$date <- ymd(activity$date)
+activity$weekend <- as.factor(ifelse(weekdays(activity$date)=="Saturday" | weekdays(activity$date)=="Sunday","weekend","weekday"))
+activity$dayofweek <- as.factor(weekdays(activity$date))
 ```
 
 -----
@@ -22,13 +31,13 @@ activityData <- read.csv('activity.csv')
 ## What is mean total number of steps taken per day?
 
 ```r
-stepsByDay <- tapply(activityData$steps, activityData$date, sum, na.rm=TRUE)
+stepsByDay <- activity %>% group_by(date) %>% summarise(stepsperday = sum(steps,na.rm = TRUE))
 ```
 
 ##### 1. Make a histogram of the total number of steps taken each day
 
 ```r
-qplot(stepsByDay, xlab='Total steps per day', ylab='Frequency using binwith 500', binwidth=500)
+qplot(stepsperday,data=stepsByDay,na.rm=TRUE,binwidth=500,xlab='Total steps per day', ylab='Frequency using binwith 500',main = 'Histogram of the total number of steps taken each day')
 ```
 
 ![plot of chunk unnamed-chunk-5](figure/unnamed-chunk-5.png) 
@@ -132,4 +141,5 @@ ggplot(averagedActivityDataImputed, aes(interval, steps)) +
 ```
 
 ![plot of chunk unnamed-chunk-15](figure/unnamed-chunk-15.png) 
+
 
