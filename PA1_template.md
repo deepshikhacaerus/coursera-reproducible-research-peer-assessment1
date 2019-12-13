@@ -45,8 +45,8 @@ qplot(stepsperday,data=stepsByDay,na.rm=TRUE,binwidth=500,xlab='Total steps per 
 ##### 2. Calculate and report the mean and median total number of steps taken per day
 
 ```r
-stepsByDayMean <- mean(stepsByDay)
-stepsByDayMedian <- median(stepsByDay)
+meanstepsperday <- stepsByDay %>% summarise(average = mean(stepsperday,na.rm = TRUE),median=median(stepsperday,na.rm = TRUE))
+meanstepsperday
 ```
 * Mean: 9354.2295
 * Median:  10395
@@ -56,16 +56,13 @@ stepsByDayMedian <- median(stepsByDay)
 ## What is the average daily activity pattern?
 
 ```r
-averageStepsPerTimeBlock <- aggregate(x=list(meanSteps=activityData$steps), by=list(interval=activityData$interval), FUN=mean, na.rm=TRUE)
+interval_average <- activity %>% group_by(interval) %>% summarise(average = mean(steps,na.rm = TRUE))
 ```
 
 ##### 1. Make a time series plot
 
 ```r
-ggplot(data=averageStepsPerTimeBlock, aes(x=interval, y=meanSteps)) +
-    geom_line() +
-    xlab("5-minute interval") +
-    ylab("average number of steps taken") 
+qplot(interval,average,data=interval_average,geom="line",xlab = "5-minute intervals",ylab = "Average steps taken across all days")
 ```
 
 ![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8.png) 
@@ -73,8 +70,7 @@ ggplot(data=averageStepsPerTimeBlock, aes(x=interval, y=meanSteps)) +
 ##### 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 
 ```r
-mostSteps <- which.max(averageStepsPerTimeBlock$meanSteps)
-timeMostSteps <-  gsub("([0-9]{1,2})([0-9]{2})", "\\1:\\2", averageStepsPerTimeBlock[mostSteps,'interval'])
+interval_average[which.max(interval_average$average),]
 ```
 
 * Most Steps at: 8:35
@@ -85,8 +81,23 @@ timeMostSteps <-  gsub("([0-9]{1,2})([0-9]{2})", "\\1:\\2", averageStepsPerTimeB
 ##### 1. Calculate and report the total number of missing values in the dataset 
 
 ```r
-numMissingValues <- length(which(is.na(activityData$steps)))
+# subset dataset where there are no NAs
+activity_no_NA <- activity[which(!is.na(activity$steps)),]
+# calculate the mean steps for each interval
+interval_only <- activity_no_NA %>% group_by(interval) %>% summarise(average=mean(steps))
+# convert the average to integer
+interval_only$average <- as.integer(interval_only$average)
+#subset dataset where steps have NAs
+activity_na <- activity[which(is.na(activity$steps)),]
+# fill NAs with average steps based on interval
+activity_na$steps <- ifelse(activity_na$interval==interval_only$interval,interval_only$average)
+# row bind the datasets that do not have NAs and the dataset where NAs are replaced with
+# mean values
+activity_impute <- rbind(activity_no_NA,activity_na)
 ```
+
+nrow(activity_na)
+
 
 * Number of missing values: 2304
 
@@ -94,16 +105,14 @@ numMissingValues <- length(which(is.na(activityData$steps)))
 ##### 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
 
 ```r
-activityDataImputed <- activityData
-activityDataImputed$steps <- impute(activityData$steps, fun=mean)
+stepsByDay_impute <- activity_impute %>% group_by(date) %>% summarise(stepsperday = sum(steps))
 ```
 
 
 ##### 4. Make a histogram of the total number of steps taken each day 
 
 ```r
-stepsByDayImputed <- tapply(activityDataImputed$steps, activityDataImputed$date, sum)
-qplot(stepsByDayImputed, xlab='Total steps per day (Imputed)', ylab='Frequency using binwith 500', binwidth=500)
+qplot(stepsperday,data=stepsByDay_impute,na.rm=TRUE,binwidth=500,xlab='Total steps per day', ylab='Frequency using binwith 500',main = 'Histogram of the total number of steps taken each day')
 ```
 
 ![plot of chunk unnamed-chunk-12](figure/unnamed-chunk-12.png) 
@@ -111,8 +120,9 @@ qplot(stepsByDayImputed, xlab='Total steps per day (Imputed)', ylab='Frequency u
 ##### ... and Calculate and report the mean and median total number of steps taken per day. 
 
 ```r
-stepsByDayMeanImputed <- mean(stepsByDayImputed)
-stepsByDayMedianImputed <- median(stepsByDayImputed)
+totalstepsperday_impute <- activity_impute %>% group_by(date) %>% summarise(stepsperday = sum(steps))
+mean_n_median <- totalstepsperday_impute %>% summarise(average=mean(stepsperday),median=median(stepsperday))
+mean_n_median
 ```
 * Mean (Imputed): 1.0766 &times; 10<sup>4</sup>
 * Median (Imputed):  1.0766 &times; 10<sup>4</sup>
@@ -125,19 +135,14 @@ stepsByDayMedianImputed <- median(stepsByDayImputed)
 
 
 ```r
-activityDataImputed$dateType <-  ifelse(as.POSIXlt(activityDataImputed$date)$wday %in% c(0,6), 'weekend', 'weekday')
+meansteps <- activity_impute %>% group_by(interval,weekend) %>%   summarise(average = mean(steps))y')
 ```
 
 ##### 2. Make a panel plot containing a time series plot
 
 
 ```r
-averagedActivityDataImputed <- aggregate(steps ~ interval + dateType, data=activityDataImputed, mean)
-ggplot(averagedActivityDataImputed, aes(interval, steps)) + 
-    geom_line() + 
-    facet_grid(dateType ~ .) +
-    xlab("5-minute interval") + 
-    ylab("avarage number of steps")
+qplot(interval,average,data=meansteps,geom="line",facets=weekend~.,xlab="5-minute interval",ylab="average number of steps",main="Average steps pattern between Weekday and Weekend")
 ```
 
 ![plot of chunk unnamed-chunk-15](figure/unnamed-chunk-15.png) 
